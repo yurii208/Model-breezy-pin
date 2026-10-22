@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}:root{padding-top:env(safe-area-inset-top,0px)}</style>
+<title>Breezy Pin 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=Anuphan:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen viewer — slim title bar, full-bleed 3D stage, control dock */
+:root{
+  --bg:#eef1ea; --panel:#f8faf5; --ink:#1e2a1d; --muted:#5d6b58; --line:#cfd8c7;
+  --sage:#6e8b5b; --sage-2:#8fa77f; --cream:#efe3cc; --open:#2f8f5b; --closed:#b0573f;
+  --display:"Bai Jamjuree","Anuphan",system-ui,sans-serif; --body:"Anuphan",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a13; --panel:#1b2319; --ink:#e4ebdf; --muted:#9daa96; --line:#2f3b2c;
+  --sage:#9ebd88; --sage-2:#7d9a6c; --cream:#e6d9bf; --open:#5cc98a; --closed:#e08a70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a13; --panel:#1b2319; --ink:#e4ebdf; --muted:#9daa96; --line:#2f3b2c;
+  --sage:#9ebd88; --sage-2:#7d9a6c; --cream:#e6d9bf; --open:#5cc98a; --closed:#e08a70; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;display:flex;flex-direction:column;overflow:hidden}
+.bar,.controls{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.bar{padding-block:12px 8px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-size:20px;margin:0}
+.sub{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.stage{position:relative;flex:1;min-height:0}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.status{position:absolute;top:8px;left:max(16px,env(safe-area-inset-left,0px));display:flex;gap:8px;pointer-events:none}
+.chip{font-family:var(--mono);font-size:12px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.chip b{font-weight:500} .chip.open b{color:var(--open)} .chip.closed b{color:var(--closed)}
+.inset{position:absolute;top:8px;right:max(16px,env(safe-area-inset-right,0px));width:150px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;display:grid;gap:2px}
+.inset svg{width:100%;height:auto;display:block}
+.inset .t{font-size:11px;color:var(--muted);text-align:center}
+.status{flex-direction:column;align-items:flex-start;right:max(16px,env(safe-area-inset-right,0px))}
+.say{font-size:13px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;max-width:34ch;line-height:1.5}
+.hint{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:12px;color:var(--muted);pointer-events:none}
+.tag{position:absolute;transform:translate(-50%,-50%);font-family:var(--mono);font-size:11px;background:var(--ink);color:var(--bg);border-radius:999px;width:20px;height:20px;display:grid;place-items:center;pointer-events:none}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-block:10px;padding-bottom:max(12px,env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--panel)}
+button{font-family:var(--body);font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:9px 14px;border-radius:10px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+button.primary{background:var(--sage);border-color:var(--sage);color:var(--panel);font-weight:600;padding-inline:22px}
+button[aria-pressed="true"]{border-color:var(--sage);box-shadow:inset 0 0 0 1px var(--sage)}
+.scents{display:flex;gap:6px;align-items:center;margin-left:auto}
+.scents span{font-size:13px;color:var(--muted)}
+.sw{width:28px;height:28px;padding:0;border-radius:50%;border:2px solid var(--line)}
+.sw[aria-pressed="true"]{border-color:var(--ink);box-shadow:none}
+@media (max-width:520px){.inset{width:118px}.scents{margin-left:0}}
+</style>
+</head>
+<body>
+<div class="bar"><h1>Breezy Pin</h1><span class="sub">ยาดมพินติดเสื้อ · Ø32 มม. · กดเด้ง–กดล็อก</span></div>
+<div class="stage" id="stage">
+  <div class="status"><div class="chip closed" id="ventChip">ช่องระบาย: <b>ปิด</b></div><div class="say" id="camState"></div></div>
+  <div class="inset" hidden><svg viewBox="4 8 212 176" role="img" aria-label="ร่องรูปหัวใจและหมุดที่วิ่งตามร่อง">
+        <polygon id="outerP" fill="var(--line)" stroke="var(--ink)" stroke-width="1.2"/>
+        <polygon id="islandP" fill="var(--sage-2)" stroke="var(--ink)" stroke-width="1.2"/>
+        <polyline id="routeP" fill="none" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>
+        <circle id="dot" r="6" fill="var(--closed)" stroke="var(--panel)" stroke-width="2"/>
+        
+      </svg><div class="t">หมุดในร่องหัวใจ</div></div>
+  <div class="hint">ลากเพื่อหมุน · บีบเพื่อซูม · แตะที่ฝาเพื่อกด</div>
+</div>
+<div class="controls">
+  <button class="primary" id="pressBtn">กดปุ่ม</button>
+  <button id="explodeBtn" aria-pressed="false">แยกชิ้น</button>
+  <button id="cutBtn" aria-pressed="false">ผ่าครึ่ง</button>
+  <button id="backBtn" aria-pressed="false">เปิดฝาหลัง</button>
+  <div class="scents" role="group" aria-label="กลิ่นฟิลเตอร์">
+      <span id="scentName">ลาเวนเดอร์</span>
+      <button class="sw" data-c="#b9a6d6" data-n="ลาเวนเดอร์" style="background:#b9a6d6" aria-pressed="true" aria-label="ลาเวนเดอร์"></button>
+      <button class="sw" data-c="#9fd3b5" data-n="เปปเปอร์มินต์" style="background:#9fd3b5" aria-pressed="false" aria-label="เปปเปอร์มินต์"></button>
+      <button class="sw" data-c="#f1efe6" data-n="มะลิ" style="background:#f1efe6" aria-pressed="false" aria-label="มะลิ"></button>
+      <button class="sw" data-c="#f2cf7a" data-n="ตะไคร้" style="background:#f2cf7a" aria-pressed="false" aria-label="ตะไคร้"></button>
+    </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+/* ---- heart-cam geometry, in (lateral x, cap offset) mm ---- */
+const ISLAND=[[0,-0.6],[1.0,-1.4],[0.8,-2.8],[0,-2.45],[-0.8,-2.8],[-1.0,-1.4]];
+const OUTER=[[-0.45,0.15],[-0.45,-0.3],[-2.2,-1.2],[-1.4,-3.4],[1.4,-3.4],[2.2,-1.2],[0.45,-0.3],[0.45,0.15]];
+const P={S:[0,0],L:[-1.6,-1.2],A:[-0.7,-3.0],N:[0,-2.5],B:[0.7,-3.0],R:[1.6,-1.2]};
+const TO_CLOSE={pts:[P.S,P.L,P.A,P.N],t:[0,.35,.6,1]}, TO_OPEN={pts:[P.N,P.B,P.R,P.S],t:[0,.3,.6,1]};
+function along(seq,u){for(let i=1;i<seq.t.length;i++){if(u<=seq.t[i]){const f=(u-seq.t[i-1])/(seq.t[i]-seq.t[i-1]);const a=seq.pts[i-1],b=seq.pts[i];return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f]}}return seq.pts[seq.pts.length-1]}
+
+/* SVG diagram */
+const sx=x=>110+x*44, sy=o=>24-o*44;
+const ptsStr=a=>a.map(p=>sx(p[0]).toFixed(1)+','+sy(p[1]).toFixed(1)).join(' ');
+document.getElementById('outerP').setAttribute('points',ptsStr(OUTER));
+document.getElementById('islandP').setAttribute('points',ptsStr(ISLAND));
+document.getElementById('routeP').setAttribute('points',ptsStr([P.S,P.L,P.A,P.N,P.B,P.R,P.S]));
+const dot=document.getElementById('dot'), camState=document.getElementById('camState');
+const stepsEls=[...document.querySelectorAll('#steps .step')];
+
+/* ---- three.js ---- */
+const T=THREE, D=Math.PI/180;
+const stage=document.getElementById('stage');
+const renderer=new T.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.localClippingEnabled=true;
+stage.prepend(renderer.domElement);
+const scene=new T.Scene();
+const cam=new T.PerspectiveCamera(35,1,1,500);
+cam.position.set(40,44,60);
+const ctl=new T.OrbitControls(cam,renderer.domElement);
+ctl.target.set(0,5,0);ctl.enablePan=false;ctl.enableDamping=true;ctl.minDistance=30;ctl.maxDistance=160;
+scene.add(new T.HemisphereLight(0xffffff,0x6b7a60,.85));
+const dl=new T.DirectionalLight(0xffffff,.8);dl.position.set(30,60,40);scene.add(dl);
+const dl2=new T.DirectionalLight(0xffffff,.3);dl2.position.set(-40,20,-30);scene.add(dl2);
+
+const cutPlane=new T.Plane(new T.Vector3(0,0,-1),0);
+const clipMats=[];
+function mat(c,o={},clip=true){const m=new T.MeshStandardMaterial(Object.assign({color:c,roughness:.6,metalness:0,side:T.DoubleSide},o));if(clip)clipMats.push(m);return m}
+const mHouse=mat(0x8fa77f),mCap=mat(0xefe3cc,{roughness:.45}),mSkirt=mat(0xe2d4b8),mLeaf=mat(0x6e8b5b),
+  mCamPlate=mat(0xd9cba9,{},false),mCamWall=mat(0x5f7a4f,{},false),mWire=mat(0xd0d2cc,{metalness:.85,roughness:.25},false),
+  mSpring=mat(0xc9ccc4,{metalness:.8,roughness:.3},false),mOring=mat(0x9a5b4c,{roughness:.8},false),
+  mMetal=mat(0xb5b7b0,{metalness:.85,roughness:.3}),mBack=mat(0x7f9970),mFilter=mat(0xb9a6d6,{roughness:.95},false),
+  mHole=mat(0x2c3628,{},false);
+
+function extr(shape,h){const g=new T.ExtrudeGeometry(shape,{depth:h,bevelEnabled:false,curveSegments:48});g.rotateX(-Math.PI/2);return g}
+function ring(r1,r2,h,y,m){const s=new T.Shape();s.absarc(0,0,r2,0,Math.PI*2,false);if(r1>0){const p=new T.Path();p.absarc(0,0,r1,0,Math.PI*2,true);s.holes.push(p)}const me=new T.Mesh(extr(s,h),m);me.position.y=y;return me}
+function sector(r1,r2,a0,a1,h,y,m){const s=new T.Shape();s.absarc(0,0,r2,a0*D,a1*D,false);s.absarc(0,0,r1,a1*D,a0*D,true);const me=new T.Mesh(extr(s,h),m);me.position.y=y;return me}
+function torus(R,r,y,m){const t=new T.Mesh(new T.TorusGeometry(R,r,8,64),m);t.rotation.x=Math.PI/2;t.position.y=y;return t}
+function cyl(a,b,r,m){const v=new T.Vector3().subVectors(b,a),L=v.length();const c=new T.Mesh(new T.CylinderGeometry(r,r,1,8),m);c.scale.y=L;c.position.copy(a).addScaledVector(v,.5);c.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),v.normalize());return c}
+function setCyl(c,a,b){const v=new T.Vector3().subVectors(b,a),L=v.length();c.scale.y=L;c.position.copy(a).addScaledVector(v,.5);c.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),v.normalize())}
+
+/* 1 housing (wall, vents, separator, follower post) */
+const housing=new T.Group();
+housing.add(ring(15,16,6.0,1.2,mHouse));                    // lower wall y1.2–7.2
+for(let k=0;k<8;k++) housing.add(sector(15,16,k*45-11.5,k*45+11.5,1.8,7.2,mHouse)); // vents centred k·45+22.5
+housing.add(ring(15,16,0.6,9.0,mHouse));                    // top band to 9.6
+{const s=new T.Shape();s.absarc(0,0,15,0,Math.PI*2,false);for(let k=0;k<8;k++){const a=(k*45+22.5)*D;const p=new T.Path();p.absarc(8*Math.cos(a),8*Math.sin(a),1.2,0,Math.PI*2,true);s.holes.push(p)}
+ const sep=new T.Mesh(extr(s,0.6),mHouse);sep.position.y=3.0;housing.add(sep)} // separator with 8 real through-holes Ø2.4
+for(const z of [-3.2,3.2]) housing.add(cyl(new T.Vector3(-16.4,1.0,z-1.4),new T.Vector3(-16.4,1.0,z+1.4),.7,mHouse)); // hinge knuckles
+{const c=new T.Mesh(new T.BoxGeometry(.6,.6,3.6),mHouse);c.position.set(16.1,2.9,0);housing.add(c)} // latch catch
+const mark=new T.Mesh(new T.BoxGeometry(.4,1.2,.3),mHole);mark.position.set(0,1.9,15.95);housing.add(mark);
+const post=new T.Mesh(new T.BoxGeometry(.9,.6,.9),mHouse);post.position.set(0,3.9,1.2);housing.add(post);
+/* 3 follower wire (fixed pivot, swings sideways) */
+const PIV=new T.Vector3(0,4.0,1.2), TIPY=6.9, XS=.8;
+const wireA=cyl(PIV,new T.Vector3(0,TIPY,1.2),.25,mWire), wireB=cyl(new T.Vector3(0,TIPY,1.2),new T.Vector3(0,TIPY,.45),.25,mWire);
+housing.add(wireA,wireB);
+scene.add(housing);
+
+/* 2 cap + heart plate (+ O-ring 5a); built at UP position, group y = cap offset */
+const cap=new T.Group();
+cap.add(ring(0,14.8,1.4,10.5,mCap));
+cap.add(ring(14.0,14.8,1.4,9.1,mSkirt));
+const capRing=torus(14.85,.25,9.4,mOring);cap.add(capRing);
+const lf=new T.Shape();lf.moveTo(0,-6);lf.quadraticCurveTo(4.5,0,0,6);lf.quadraticCurveTo(-4.5,0,0,-6);
+const leaf=new T.Mesh(extr(lf,.35),mLeaf);leaf.position.y=11.9;leaf.rotation.y=-35*D;cap.add(leaf);
+const vein=new T.Mesh(new T.BoxGeometry(.25,.1,10),mCap);vein.position.y=12.28;vein.rotation.y=-35*D+Math.PI/2;cap.add(vein);
+// heart plate hanging under cap; local track y = TIPY - 10.5 ... mapped so tip sits at track point for each offset
+const plate=new T.Group();
+const base=new T.Mesh(new T.BoxGeometry(4.8,3.7,.8),mCamPlate);base.position.set(0,-1.95,-.1);plate.add(base);
+const ly=o=>(TIPY-10.5)-o;  // plate-local y for cap offset o (plate origin at cap underside)
+const toShape=(arr)=>{const s=new T.Shape();arr.forEach((p,i)=>{const x=p[0]*XS,y=ly(p[1]);i?s.lineTo(x,y):s.moveTo(x,y)});s.closePath();return s};
+const wallS=new T.Shape();wallS.moveTo(-2.4,-3.8);wallS.lineTo(2.4,-3.8);wallS.lineTo(2.4,-.1);wallS.lineTo(-2.4,-.1);wallS.closePath();
+const hole=new T.Path();OUTER.forEach((p,i)=>{const x=p[0]*XS,y=ly(p[1]);i?hole.lineTo(x,y):hole.moveTo(x,y)});hole.closePath();wallS.holes.push(hole);
+const eo={depth:.4,bevelEnabled:false};
+const walls=new T.Mesh(new T.ExtrudeGeometry(wallS,eo),mCamWall);walls.position.z=.3;plate.add(walls);
+const isl=new T.Mesh(new T.ExtrudeGeometry(toShape(ISLAND),eo),mCamWall);isl.position.z=.3;plate.add(isl);
+plate.position.y=10.5;cap.add(plate);
+scene.add(cap);
+
+/* 4 spring between separator (3.6) and cap underside */
+const springG=new T.Group();
+const pts=[];for(let i=0;i<=240;i++){const u=i/240,a=u*Math.PI*2*6;pts.push(new T.Vector3(3.4*Math.cos(a),u,3.4*Math.sin(a)))}
+const spring=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),360,.16,6,false),mSpring);
+spring.position.y=3.6;springG.add(spring);scene.add(springG);
+
+/* 7 back cover + clip, 6 filter, 5b O-ring */
+const backPivot=new T.Group();backPivot.position.set(-16.4,1.0,0);
+const back=new T.Group();back.position.set(16.4,-1.0,0);backPivot.add(back);
+back.add(ring(0,16,1.2,0,mBack));
+back.add(ring(12.4,14.9,1.8,1.2,mBack));
+back.add(cyl(new T.Vector3(-16.4,1.0,-1.7),new T.Vector3(-16.4,1.0,1.7),.7,mBack)); // centre knuckle
+{const t=new T.Mesh(new T.BoxGeometry(.7,2.6,4),mBack);t.position.set(16.35,1.9,0);back.add(t);const n=new T.Mesh(new T.BoxGeometry(.9,.7,4),mBack);n.position.set(16.9,.35,0);back.add(n)} // snap tab + fingernail lip
+back.add(torus(15.1,.22,1.4,mOring));
+const filt=ring(0,12,1.7,1.2,mFilter);back.add(filt);
+const bmark=new T.Mesh(new T.BoxGeometry(.4,.8,.3),mHole);bmark.position.set(0,.6,15.95);back.add(bmark);
+const cb=new T.Mesh(new T.BoxGeometry(7,.7,24),mMetal);cb.position.set(0,-1.6,-1);back.add(cb);
+const hinge=new T.Mesh(new T.BoxGeometry(8,1.6,4),mMetal);hinge.position.set(0,-.8,10);back.add(hinge);
+const lipC=new T.Mesh(new T.CylinderGeometry(.9,.9,7,16),mMetal);lipC.rotation.z=Math.PI/2;lipC.position.set(0,-1.3,-13);back.add(lipC);
+scene.add(backPivot);
+
+/* particles */
+const parts=[];const pMat=new T.MeshBasicMaterial({color:0xb9a6d6,transparent:true});
+for(let i=0;i<48;i++){const m=new T.Mesh(new T.SphereGeometry(.35,8,6),pMat.clone());m.visible=false;scene.add(m);parts.push({m,life:0})}
+
+/* state */
+let open=false, seq=null, u=0, tip=P.N.slice(), expl=0, explT=0, backV=0, backT=0, cut=false;
+const ventChip=document.getElementById('ventChip');
+function updateUI(){
+  ventChip.className='chip '+(open?'open':'closed');ventChip.innerHTML='ช่องระบาย: <b>'+(open?'เปิด':'ปิด')+'</b>';
+  dot.setAttribute('fill',open?'var(--open)':'var(--closed)');
+  camState.textContent=seq?(seq===TO_OPEN?'ตัวล็อกปลดแล้ว สปริงกำลังดันฝาขึ้น…':'ฝากำลังจมลงไปล็อก…'):(open?'ฝาเด้งขึ้น ช่องระบายรอบขอบโผล่ออกมา กลิ่นออกได้ · กดอีกครั้งเพื่อปิด':'ฝาจมลงและล็อกไว้ ยางที่ขอบฝาปิดช่องระบาย กลิ่นไม่ออก · กดเพื่อเปิด');
+  stepsEls.forEach(e=>e.classList.toggle('on',(e.dataset.k==='0'&&!open&&!seq)||(e.dataset.k==='1'&&seq===TO_OPEN)||(e.dataset.k==='2'&&seq===TO_CLOSE)));
+}
+function press(){if(seq||backT)return;seq=open?TO_CLOSE:TO_OPEN;u=0;updateUI()}
+document.getElementById('pressBtn').onclick=press;
+const eb=document.getElementById('explodeBtn');eb.onclick=()=>{explT=explT?0:1;eb.setAttribute('aria-pressed',!!explT)};
+const cbn=document.getElementById('cutBtn');cbn.onclick=()=>{cut=!cut;clipMats.forEach(m=>{m.clippingPlanes=cut?[cutPlane]:[];m.needsUpdate=true});cbn.setAttribute('aria-pressed',cut)};
+const bb=document.getElementById('backBtn');bb.onclick=()=>{backT=backT?0:1;bb.setAttribute('aria-pressed',!!backT);bb.textContent=backT?'ปิดฝาหลัง':'เปิดฝาหลัง'};
+document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>{document.querySelectorAll('.sw').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');const c=new T.Color(b.dataset.c);mFilter.color.copy(c);parts.forEach(p=>p.m.material.color.copy(c));document.getElementById('scentName').textContent=b.dataset.n});
+
+const ray=new T.Raycaster(),mv=new T.Vector2();let down=null;
+renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+renderer.domElement.addEventListener('pointerup',e=>{if(!down)return;if(Math.hypot(e.clientX-down[0],e.clientY-down[1])<6){const r=renderer.domElement.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mv,cam);if(ray.intersectObjects(cap.children,true).length)press()}down=null});
+
+const tagDefs=[[housing,[16,5,0]],[cap,[0,12.3,-12]],[housing,[0,4.0,1.2]],[springG,[3.4,4,0]],[cap,[-14.85,9.4,0]],[back,[-8,2.9,6]],[back,[0,-1.6,-12]]];
+const tags=tagDefs.map((d,i)=>{const el=document.createElement('div');el.className='tag';el.textContent=i+1;el.hidden=true;stage.appendChild(el);return {el,obj:d[0],off:new T.Vector3(...d[1])}});
+
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(stage);resize();
+
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sm=x=>x*x*(3-2*x);
+let last=performance.now();
+function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;
+  if(seq){u+=dt/(reduce?.2:1.1);if(u>=1){tip=seq.pts[seq.pts.length-1].slice();open=(seq===TO_OPEN);seq=null;updateUI()}else tip=along(seq,sm(u))}
+  const k=reduce?1:Math.min(1,dt*5);
+  expl+=(explT-expl)*k;backV+=(backT-backV)*(reduce?1:Math.min(1,dt*3));
+  const off=tip[1];
+  cap.position.y=off+expl*9;
+  springG.position.y=expl*4;spring.scale.y=(10.5+off)-3.6;
+  // follower tip swings sideways in the groove
+  const tp=new T.Vector3(tip[0]*XS,TIPY,1.2);setCyl(wireA,PIV,tp);setCyl(wireB,tp,new T.Vector3(tip[0]*XS,TIPY,.45));
+  // back cover: swings open on its hinge like a locket
+  backPivot.rotation.z=-115*D*sm(backV);backPivot.position.y=1.0-expl*9;
+  // svg
+  dot.setAttribute('cx',sx(tip[0]).toFixed(1));dot.setAttribute('cy',sy(tip[1]).toFixed(1));
+  // particles
+  const flow=open&&!seq&&expl<.05&&backV<.02;
+  parts.forEach(p=>{if(p.life<=0){if(flow&&Math.random()<dt*4){const v=Math.floor(Math.random()*8),a=(v*45+22.5)*D;if(Math.random()<.45){p.m.position.set(16*Math.cos(a),8.1,-16*Math.sin(a));p.v=new T.Vector3(Math.cos(a)*4,1.5+Math.random(),-Math.sin(a)*4)}else{p.m.position.set(8*Math.cos(a),3.2,-8*Math.sin(a));p.v=new T.Vector3(Math.cos(a)*5,3.3,-Math.sin(a)*5)}p.life=1;p.m.visible=true}else p.m.visible=false;return}
+    p.life-=dt*.7;p.m.position.addScaledVector(p.v,dt);p.m.material.opacity=Math.max(0,p.life)*.8;p.m.scale.setScalar(1+(1-p.life)*1.5)});
+  ctl.update();renderer.render(scene,cam);
+  const show=expl>.6;const r=renderer.domElement.getBoundingClientRect();
+  tags.forEach(t=>{t.el.hidden=!show;if(!show)return;const v=t.off.clone();t.obj.localToWorld(v);v.project(cam);t.el.style.left=((v.x+1)/2*r.width)+'px';t.el.style.top=((1-v.y)/2*r.height)+'px'});
+  requestAnimationFrame(loop)}
+updateUI();requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
